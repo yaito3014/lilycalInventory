@@ -220,13 +220,20 @@ namespace jp.lilxyzw.lilycalinventory
                     }
                     continue;
                 }
+                if(!modifier.skinnedMeshRenderer.sharedMesh) continue;
                 foreach(var namevalue in modifier.blendShapeNameValues)
                 {
                     var renderer = modifier.skinnedMeshRenderer;
                     var index = renderer.sharedMesh.GetBlendShapeIndex(namevalue.name);
                     if(index == -1) continue;
                     var binding = AnimationHelper.CreateBlendShapeBinding(renderer, namevalue.name);
-                    AddPropertyModification(binding, renderer, new SerializedObject(renderer).FindProperty("m_BlendShapeWeights").GetArrayElementAtIndex(index).propertyPath, renderer.GetBlendShapeWeight(index));
+                    // m_BlendShapeWeights can be shorter than the mesh's blend shape count if no weight has ever been set on the renderer,
+                    // in which case GetArrayElementAtIndex returns null. Build the property path manually instead.
+                    var m_BlendShapeWeights = new SerializedObject(renderer).FindProperty("m_BlendShapeWeights");
+                    var propertyPath = index < m_BlendShapeWeights.arraySize
+                        ? m_BlendShapeWeights.GetArrayElementAtIndex(index).propertyPath
+                        : $"m_BlendShapeWeights.Array.data[{index}]";
+                    AddPropertyModification(binding, renderer, propertyPath, renderer.GetBlendShapeWeight(index));
                     renderer.SetBlendShapeWeight(index, namevalue.value);
                 }
             }
